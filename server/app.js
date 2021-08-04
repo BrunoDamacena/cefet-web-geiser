@@ -1,6 +1,7 @@
 // importação de dependência(s)
 import express from 'express';
 import { readFile } from 'fs';
+
 const app = express();
 
 // variáveis globais deste módulo
@@ -60,6 +61,50 @@ app.get('/', (req, res) => {
 // jogador, usando os dados do banco de dados "data/jogadores.json" e
 // "data/jogosPorJogador.json", assim como alguns campos calculados
 // dica: o handler desta função pode chegar a ter ~15 linhas de código
+
+app.get('/jogador/:numero_identificador', (req, res) => {
+    const steamid = req.params.numero_identificador;
+    /*
+     * busca o jogador na lista de jogadores pelo steamid
+     * retorna o objeto jogador caso o jogador exista na lista
+     * retorna undefined caso contrário
+    */
+    const jogador = db.jogadores.players.find(player => player.steamid === steamid);
+    
+    if (jogador) {
+        const jogosPorJogador = db.jogosPorJogador[steamid];
+
+        let detalhes = {};
+        detalhes.jogador = jogador;
+        detalhes.quantidadeJogos = jogosPorJogador.game_count;
+        // conta a quantidade de jogos cujo tempo de jogo é zero
+        detalhes.naoJogados = jogosPorJogador.games.filter(game => game.playtime_forever === 0).length;
+        // ordena a lista de jogos de forma decrescente, e seleciona apenas os cinco primeiros
+        detalhes.topCincoJogados = jogosPorJogador.games.sort((a, b) => {
+            return b.playtime_forever - a.playtime_forever;
+        }).slice(0,5);
+
+        // mudando o tempo de jogo para horas mantendo o resultado inteiro
+        for (let jogo of detalhes.topCincoJogados) {
+            jogo.playtime_forever = (jogo.playtime_forever / 60).toFixed(0);
+        }
+
+        detalhes.jogoFavorito = detalhes.topCincoJogados[0];
+
+        res.render('jogador.hbs', detalhes, (err, html) => {
+            if (err) {
+                res.status(500).send(`Error: ${err}`);
+            }
+            else {
+                res.send(html);
+            }
+        });
+    }
+    else {
+        res.status(404).send(`Jogador com id ${steamid} não foi encontrado!`)
+    }
+    
+});
 
 
 // EXERCÍCIO 1
